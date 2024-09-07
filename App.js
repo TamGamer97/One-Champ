@@ -16,6 +16,9 @@ import Account from './JS/Account'
 import StartPage from './JS/StartPage'
 import SignUp from './JS/Signup'
 
+import { Provider as PaperProvider } from 'react-native-paper';
+
+
 import { load, save } from './JS/Functions';
 
 
@@ -78,6 +81,9 @@ export default function App() {
   
 
   return (
+    <PaperProvider>
+
+
     <NavigationContainer theme={MyTheme} >
       <Tab.Navigator>
         <Tab.Screen name="Start" component={StartFunction} options={{ tabBarStyle: { display: 'none'}, tabBarButton: (props) => null, tabBarShowLabel: true, headerShown: false }} />
@@ -89,6 +95,9 @@ export default function App() {
         <Tab.Screen name="Account" component={AccountFunction} options={{ tabBarStyle: { height: 60, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderLeftWidth: 0.2, borderRightWidth: 0.2, position: 'absolute', overflow: 'hidden', borderColor: 'transparent' }, headerShown: false, tabBarShowLabel: false, tabBarIcon: ({ color, size, focused }) => (<Image style={[{width :23, height: 23, marginTop: 5, opacity: focused ? 0.8 : 0.4 }]} source={AccountIcon} />), }} />
       </Tab.Navigator>
     </NavigationContainer>
+
+    </PaperProvider>
+    
   );
 }
 

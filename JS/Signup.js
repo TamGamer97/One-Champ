@@ -3,6 +3,8 @@ import { StyleSheet, Text, View, Image, Appearance, TouchableOpacity, ImageBackg
 import { StatusBar } from 'expo-status-bar';
 
 import { vw, vh } from 'react-native-expo-viewport-units';
+import { Snackbar } from 'react-native-paper';
+
 
 import * as Font from "expo-font";
 
@@ -11,6 +13,9 @@ import Swiper from 'react-native-swiper'
 import 'react-native-url-polyfill/auto'
 import * as SecureStore from 'expo-secure-store'
 import { createClient } from '@supabase/supabase-js'
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
  
 export default function App({navigation}) {
 
@@ -26,9 +31,21 @@ export default function App({navigation}) {
 
     const [RighteousFont, setRighteousFont] = useState('')
 
-    function startApp()
+    const [visible, setVisible] = useState(false);
+    const [snackTxt, setSnackText] = useState('.')
+    const onToggleSnackBar = () => setVisible(!visible);
+    const onDismissSnackBar = () => setVisible(false);
+
+    async function startApp()
     {
         console.log('Starting')
+
+        // const loginInfo = await getData('login')
+
+        // if(loginInfo != undefined)
+        // {
+        //     navigation.navigate('Home')
+        // }
 
         if(isSignupPage)
         {
@@ -120,6 +137,32 @@ export default function App({navigation}) {
         }
     }
 
+    const storeData = async (key, value) => {
+        try {
+          await AsyncStorage.setItem(key, value);
+          console.log('Data saved successfully');
+        } catch (e) {
+          // saving error
+          console.error('Failed to save the data to the storage');
+        }
+      };
+
+      const getData = async (key) => {
+        try {
+          const token = await AsyncStorage.getItem(key);
+          if(token !== null) {
+            console.log('Token retrieved:', token);
+            return token
+          } else {
+            console.log('No token found');
+          }
+        } catch (e) {
+          // error reading value
+          console.error('Failed to fetch the data from storage');
+        }
+      };
+      
+
     async function startDatabaseApp(type)
     {
         if(type == 'signup')
@@ -146,13 +189,30 @@ export default function App({navigation}) {
             if(foundEmail)
             {
                 console.log('Email already exists')
+                setSnackText('Email already exists')
+                onToggleSnackBar()
             }else{
                 console.log('Proceed to creating account')
                 const {data, error} = await supabase
                     .from('accounts')
-                    .insert([{'email': emailAdr, 'password': password, 'username': username, 'id': x+1}])
+                    .insert([{'email': emailAdr, 'password': password, 'username': username}])
+                    .select() // needed or else data is not returned, but insertion still works
 
-                console.log('Account Most likely Created')
+                    if(data)
+                    {
+                        console.log('Account Most likely Created')
+                        console.log(data)
+                        SwitchLogin('login')
+                        setSnackText('Account created, Login.')
+                        onToggleSnackBar()
+                    }
+                    if(error)
+                    {
+                        console.log('error')
+                        console.log(error)
+                        setSnackText('Error: ' + error)
+                        onToggleSnackBar()
+                    }
             }
 
         }
@@ -161,7 +221,7 @@ export default function App({navigation}) {
             const {data, error} = await supabase
                 .from('accounts') // table name
                 .select()
-            
+
             console.log(data)
 
             let emailFound = false
@@ -181,6 +241,11 @@ export default function App({navigation}) {
                         console.log('Login Successful. Redirecting')
                         loginSuccess = true
 
+                        const loginInfo = [emailAdr, password]
+
+                        await storeData('login', JSON.stringify(loginInfo))
+                        
+
                         navigation.navigate('Home')
                     }else{
                         break
@@ -190,10 +255,14 @@ export default function App({navigation}) {
             if(!emailFound)
             {
                 console.log('Email does not exist')
+                setSnackText('Incorrect email or password')
+                onToggleSnackBar()
             }
             if(emailFound && !loginSuccess)
             {
                 console.log('Password does not match')
+                setSnackText('Incorrect email or password')
+                onToggleSnackBar()
             }
 
         }
@@ -272,6 +341,20 @@ export default function App({navigation}) {
 
 
 
+        <Snackbar
+        visible={visible}
+        onDismiss={onDismissSnackBar}
+        duration={5000} // duration in milliseconds
+        action={{   
+          label: 'dismiss',
+          onPress: () => {
+            // Do something if the user presses the action button
+          },
+        }}
+        style={{ backgroundColor: '#181C25', borderColor: '#222232', borderWidth: 1 }} // customize background color
+      >
+        {snackTxt}
+      </Snackbar>
 
 
         </ImageBackground>

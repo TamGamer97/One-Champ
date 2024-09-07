@@ -8,6 +8,9 @@ import * as Font from "expo-font";
 
 import Swiper from 'react-native-swiper'
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
 
 
 export default function App({navigation}) {
@@ -23,6 +26,21 @@ export default function App({navigation}) {
 
   fetchFont()
 
+  const getData = async (key) => {
+    try {
+      const token = await AsyncStorage.getItem(key);
+      if(token !== null) {
+        console.log('Token retrieved:', token);
+        return token
+      } else {
+        console.log('No token found');
+      }
+    } catch (e) {
+      // error reading value
+      console.error('Failed to fetch the data from storage');
+    }
+  };
+
 
     const [RighteousFont, setRighteousFont] = useState('')
 
@@ -30,6 +48,20 @@ export default function App({navigation}) {
     {
         navigation.navigate('SignUp')
     }
+
+    useEffect(async() => {
+      console.log('Finding login info')
+      var loginInfo = await getData('login')
+      loginInfo = JSON.parse(loginInfo)
+      if(loginInfo != undefined)
+      {
+          console.log('loged in, redirecting')
+          navigation.navigate('Home')
+      }else{
+        console.log('no login info found')
+      }
+
+    }, [])
 
     return (
     <View style={{width: vw(100), height: vh(100)}}>
