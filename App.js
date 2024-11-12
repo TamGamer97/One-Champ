@@ -6,15 +6,18 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import HomeIcon from './Images/HomeIcon.png'
 import DiscoverIcon from './Images/discoverIcon.png'
-import WatchingIcon from './Images/TrackIcon.png'
+import SocialIcon from './Images/TrackIcon.png'
 import AccountIcon from './Images/AccountIcon.png'
 
 import Home from './JS/Home'
 import Discover from './JS/Discover'
-import Watching from './JS/Watching'
+import Social from './JS/Social'
 import Account from './JS/Account'
 import StartPage from './JS/StartPage'
 import SignUp from './JS/Signup'
+
+import MatchInfo from './JS/MatchInfo'
+import LeagueInfo from './JS/LeagueInfo'
 
 import { Provider as PaperProvider } from 'react-native-paper';
 
@@ -70,13 +73,21 @@ export default function App() {
   {
       return <Discover navigation={navigation} />
   }
-  function WatchingFunction({navigation})
+  function SocialFunction({navigation})
   {
-      return <Watching navigation={navigation} />
+      return <Social navigation={navigation} />
   }
   function AccountFunction({navigation})
   {
       return <Account navigation={navigation} />
+  }
+  function MatchInfoFunction({navigation})
+  {
+    return <MatchInfo navigation={navigation}/>
+  }
+  function LeagueInfoFunction({navigation})
+  {
+    return <LeagueInfo navigation={navigation}/>
   }
   
 
@@ -86,13 +97,22 @@ export default function App() {
 
     <NavigationContainer theme={MyTheme} >
       <Tab.Navigator>
+
+        {/* Introductory */}
         <Tab.Screen name="Start" component={StartFunction} options={{ tabBarStyle: { display: 'none'}, tabBarButton: (props) => null, tabBarShowLabel: true, headerShown: false }} />
         <Tab.Screen name="SignUp" component={SignUpFunction} options={{ tabBarStyle: { display: 'none'}, tabBarButton: (props) => null, tabBarShowLabel: true, headerShown: false }} />
         
+        {/* Main Pages */}
         <Tab.Screen name="Home" component={HomeFunction} options={{ tabBarStyle: { height: 60, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderLeftWidth: 0.2, borderRightWidth: 0.2, position: 'absolute', overflow: 'hidden', borderColor: 'transparent' }, headerShown: false, tabBarShowLabel: false, tabBarIcon: ({ color, size, focused }) => (<Image style={[{width :23, height: 23, marginTop: 5, opacity: focused ? 0.8 : 0.4 }]} source={HomeIcon} />), }} />
         <Tab.Screen name="Discover" component={DiscoverFunction} options={{ tabBarStyle: { height: 60, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderLeftWidth: 0.2, borderRightWidth: 0.2, position: 'absolute', overflow: 'hidden', borderColor: 'transparent' }, headerShown: false, tabBarShowLabel: false, tabBarIcon: ({ color, size, focused }) => (<Image style={[{width :23, height: 23, marginTop: 5, opacity: focused ? 0.8 : 0.4 }]} source={DiscoverIcon} />), }} />
-        <Tab.Screen name="Watching" component={WatchingFunction} options={{ tabBarStyle: { height: 60, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderLeftWidth: 0.2, borderRightWidth: 0.2, position: 'absolute', overflow: 'hidden', borderColor: 'transparent' }, headerShown: false, tabBarShowLabel: false, tabBarIcon: ({ color, size, focused }) => (<Image style={[{width :23, height: 23, marginTop: 5, opacity: focused ? 0.8 : 0.4 }]} source={WatchingIcon} />), }} />
+        <Tab.Screen name="Social" component={SocialFunction} options={{ tabBarStyle: { height: 60, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderLeftWidth: 0.2, borderRightWidth: 0.2, position: 'absolute', overflow: 'hidden', borderColor: 'transparent' }, headerShown: false, tabBarShowLabel: false, tabBarIcon: ({ color, size, focused }) => (<Image style={[{width :23, height: 23, marginTop: 5, opacity: focused ? 0.8 : 0.4 }]} source={SocialIcon} />), }} />
         <Tab.Screen name="Account" component={AccountFunction} options={{ tabBarStyle: { height: 60, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderLeftWidth: 0.2, borderRightWidth: 0.2, position: 'absolute', overflow: 'hidden', borderColor: 'transparent' }, headerShown: false, tabBarShowLabel: false, tabBarIcon: ({ color, size, focused }) => (<Image style={[{width :23, height: 23, marginTop: 5, opacity: focused ? 0.8 : 0.4 }]} source={AccountIcon} />), }} />
+        
+        {/* Sub Pages */}
+        <Tab.Screen name="MatchInfo" component={MatchInfoFunction} options={{ tabBarStyle: { display: 'none'}, tabBarButton: (props) => null, tabBarShowLabel: true, headerShown: false }}  />
+        <Tab.Screen name="LeagueInfo" component={LeagueInfoFunction} options={{ tabBarStyle: { display: 'none'}, tabBarButton: (props) => null, tabBarShowLabel: true, headerShown: false }}  />
+
+
       </Tab.Navigator>
     </NavigationContainer>
 

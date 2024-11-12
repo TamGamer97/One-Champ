@@ -91,7 +91,7 @@ export default function App({navigation}) {
     const [emailAdr, setEmailAdr] = useState('')
     const [password, setPass] = useState('')
     const [rePass, setRePass] = useState('')
-
+    const [userIDState, setUserId] = useState('')
 
 
     // Supabase
@@ -116,7 +116,7 @@ export default function App({navigation}) {
 
         if(data)
         {
-            console.log(data)
+            return data
         }
     }
 
@@ -133,7 +133,7 @@ export default function App({navigation}) {
         }
         if(data)
         {
-            console.log(data)
+            return data
         }
     }
 
@@ -163,6 +163,24 @@ export default function App({navigation}) {
       };
       
 
+    function uniqueAccountId(email) // replace this function with an API request to the server /unique-user-id
+    {
+        // Get the first 4 characters of the username (or less if the username is shorter)
+        let shortUsername = email.substring(0, 4);
+
+        // Get the current date and time
+        let now = new Date();
+        
+        // Extract time (in milliseconds) and date components
+        let timeInMillis = now.getTime(); // Returns the time in milliseconds since Jan 1, 1970
+
+        // Combine the shortUsername, timeInMillis, and year to form the userId
+        let userId = `${shortUsername}${timeInMillis}`;
+
+        console.log('OFFICAL USERID: ' + userId)
+        return userId;
+    }
+
     async function startDatabaseApp(type)
     {
         if(type == 'signup')
@@ -174,8 +192,13 @@ export default function App({navigation}) {
             
             console.log(data)
 
+            let userID = uniqueAccountId(emailAdr.split('@')[0])
+            // let username = emailAdr.split('@')[0]
+            let username = userID
+
+            setUserId(username)
+            
             let foundEmail = false
-            let username = emailAdr.split('@')[0]
             var x = 0
             for (x = 0; x < data.length; x++)
             {
@@ -195,7 +218,7 @@ export default function App({navigation}) {
                 console.log('Proceed to creating account')
                 const {data, error} = await supabase
                     .from('accounts')
-                    .insert([{'email': emailAdr, 'password': password, 'username': username}])
+                    .insert([{'email': emailAdr, 'password': password, 'username': username, id: username, name: '', friendsList: [ 'default' ], preferences: {'default': 'default'}, predictedMatches: [ {'default': 'default'} ], userInfo: {score: 0, wins: 0, loss: 0}  }])
                     .select() // needed or else data is not returned, but insertion still works
 
                     if(data)
@@ -241,7 +264,7 @@ export default function App({navigation}) {
                         console.log('Login Successful. Redirecting')
                         loginSuccess = true
 
-                        const loginInfo = [emailAdr, password]
+                        const loginInfo = [emailAdr, password, userIDState]
 
                         await storeData('login', JSON.stringify(loginInfo))
                         

@@ -41,6 +41,16 @@ export default function App({navigation}) {
     }
   };
 
+  const storeData = async (key, value) => {
+    try {
+      await AsyncStorage.setItem(key, value);
+      console.log('Data saved successfully');
+    } catch (e) {
+      // saving error
+      console.error('Failed to save the data to the storage');
+    }
+  };
+
 
     const [RighteousFont, setRighteousFont] = useState('')
 
@@ -55,6 +65,7 @@ export default function App({navigation}) {
       loginInfo = JSON.parse(loginInfo)
       if(loginInfo != undefined)
       {
+          // storeData('login', '') // enable to logout
           console.log('loged in, redirecting')
           navigation.navigate('Home')
       }else{

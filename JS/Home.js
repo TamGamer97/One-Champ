@@ -5,11 +5,12 @@ import { StatusBar } from 'expo-status-bar';
 
 import { DOMParser } from 'react-native-dom-parser';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 import * as Font from "expo-font";
 
-export default function App() {
+export default function App({navigation}) {
 
     const fetchFont = async () => {
         await Font.loadAsync({
@@ -22,23 +23,50 @@ export default function App() {
     fetchFont()
 
     const [RighteousFont, setRighteousFont] = useState('')
+
+    
     const [upcomingMatches, setUpcomingMatches] = useState([]) // [  { team1: [name, url] ], team2: [name, url], time: '', date: ''}  ]
+    const [recentMatch, setRecentMatch] = useState({team1: [], team2: [], time: '', date: '', score: ''}) // { team1: [name, url] ], team2: [name, url], time: '', date: ''} 
 
 
+    async function formitizeMatch(matchObj)
+    {
+        const homeTeam = matchObj.Team1;
+        const awayTeam = matchObj.Team2;
+        const matchDate = new Date(matchObj.Date);
+
+
+        // Extract day, month, and year
+        const day = String(matchDate.getDate()).padStart(2, '0');
+        const month = String(matchDate.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+        const year = matchDate.getFullYear();
+        const datePart = `${day}/${month}/${year}`;
+
+        // Extract time in HH:MM format
+        const timePart = matchObj.Time;
+
+        const homeImage = await getTeamIcon(homeTeam);
+        const awayImage = await getTeamIcon(awayTeam);
+
+        // console.log(matchObj.Score)
+        // Add the match details to the tempUpcoming array
+        return ({
+            team1: [homeTeam, homeImage],
+            team2: [awayTeam, awayImage],
+            time: [datePart, timePart],
+            league: 'pm',
+            score: matchObj.Score
+        })
+    }
 
 
     var runTodayMatches = false
-    async function getTodayMatches()
+    async function getTodayMatches(pmMatches)
     {
-        if (runTodayMatches === true) { 
-            return;
-        }
-        runTodayMatches = true;
         
-        console.log('searching')
-        const pmMatches = await fetchPremierLeagueFixtures();
         var tempUpcoming = [];
 
+        
         // console.log(pmMatches.length)
         
         // Get the current date and time
@@ -49,31 +77,15 @@ export default function App() {
         .filter((match) => new Date(match.Date) > currentDate)
         .sort((a, b) => new Date(a.Date) - new Date(b.Date))
         .slice(0, 3);
+        // fix this code to show todays matches too not just the day afters 
 
         // Process each match asynchronously
         for (const match of upcomingMatches) {
-        const homeTeam = match.Team1;
-        const awayTeam = match.Team2;
-        const matchDate = new Date(match.Date);
+            
+            const formattedMatch = await formitizeMatch(match)
 
-        // Extract day, month, and year
-        const day = String(matchDate.getDate()).padStart(2, '0');
-        const month = String(matchDate.getMonth() + 1).padStart(2, '0'); // Months are 0-based
-        const year = matchDate.getFullYear();
-        const datePart = `${day}/${month}/${year}`;
-
-        // Extract time in HH:MM format
-        const timePart = match.Time;
-
-        const homeImage = await getTeamIcon(homeTeam);
-        const awayImage = await getTeamIcon(awayTeam);
-
-        // Add the match details to the tempUpcoming array
-        tempUpcoming.push({
-            team1: [homeTeam, homeImage],
-            team2: [awayTeam, awayImage],
-            time: [datePart, timePart],
-        });
+            // Add the match details to the tempUpcoming array
+            tempUpcoming.push(formattedMatch);
 
         }
 
@@ -88,7 +100,7 @@ export default function App() {
         
         console.log('finding pm fixtures')
         
-        var pmFixtures = await fetch('https://onechampapi-hw950o0p.b4a.run/PremierLeague-Fixtures', {
+        var pmFixtures = await fetch('https://one-champ-api-1.onrender.com/Premier-League-Fixtures', {
             headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'Mac OS',
@@ -99,18 +111,14 @@ export default function App() {
 
         return pmFixtures
     }
-      
-    useEffect(() => {
-        getTodayMatches()
-    }, [])
-
+    
     var teamsInfo = []
     async function getTeamIcon(targetTeam)
     {
         // console.log('finding team icon')
         async function loadTeamInfo()
         {
-            var informationAboutTeamsFromApi = await fetch('https://onechampapi-hw950o0p.b4a.run/Team-Info')  
+            var informationAboutTeamsFromApi = await fetch('https://one-champ-api-1.onrender.com/Team-Info')  
             informationAboutTeamsFromApi = await informationAboutTeamsFromApi.json()
             // console.log(informationAboutTeamsFromApi)
             return informationAboutTeamsFromApi
@@ -140,23 +148,111 @@ export default function App() {
         {
             var team = teamsInfo[teamIndx]
             // console.log(targetTeam + ' & ' + team.name)
-            if(team.name == targetTeam || team.shortName == targetTeam || targetTeam == team.shortName.split(' ')[0])
+            // if(team.name == targetTeam || team.shortName == targetTeam || targetTeam == team.shortName.split(' ')[0])
+            // {
+            //     // console.log(team.crestUrl)
+            //     return team.crestUrl
+            // }
+            if(team.name == targetTeam)
             {
-                // console.log(team.crestUrl)
                 return team.crestUrl
             }
         }
     }
 
+    async function getRecentMatch(pmMatches)
+    {
+        var recentMatchObj = {}
 
-    const LiveMatchScore = () => {
+        for (const matchIndx in pmMatches) {
+            const match = pmMatches[matchIndx]
+            const homeTeam = match.Team1;
+            const awayTeam = match.Team2;
+            const matchDate = new Date(match.Date);
+            const score = match.Score
+
+            // Search for the first match that hasnt been played
+            // then find the match before that by subtracting the index by 1
+            // This will give the most recent fully played match
+            if(score == 'not played')
+            {
+                recentMatchObj = pmMatches[matchIndx-1]
+                break
+            }
+        }
+
+
+        const formattedMatch = await formitizeMatch(recentMatchObj)
+
+        setRecentMatch(formattedMatch)
+
+    }
+
+    const storeData = async (key, value) => {
+        try {
+          await AsyncStorage.setItem(key, value);
+          console.log('Data saved successfully');
+        } catch (e) {
+          // saving error
+          console.error('Failed to save the data to the storage');
+        }
+      };
+
+      const getData = async (key) => {
+        try {
+          const token = await AsyncStorage.getItem(key);
+          if(token !== null) {
+            console.log('Token retrieved:', token);
+            return token
+          } else {
+            console.log('No token found');
+          }
+        } catch (e) {
+          // error reading value
+          console.error('Failed to fetch the data from storage');
+        }
+      };
+      
+
+    async function populatePage()
+    {
+        if (runTodayMatches === true) { 
+        }else{
+            console.log('searching')
+            const pmMatches = await fetchPremierLeagueFixtures();
+
+            getTodayMatches(pmMatches)
+            getRecentMatch(pmMatches)
+            
+            runTodayMatches = true;
+        }
+        
+    }
+
+    useEffect(() => {
+        populatePage()
+    }, [])
+
+    const RecentMatchScore = () => {
         return(
             
-            <View style={{width: 320, height: 160, borderRadius: 10, backgroundColor: '#16B2CA', marginTop: 30, flexGrow: 1}}>
-                <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 18, position: 'relative', top: -33, left: 0, width: 120}} >Live Scores</Text>
+            <View style={{width: 320, height: 160, borderRadius: 10, backgroundColor: '#16B2CA', marginTop: 30, flexGrow: 1, display: 'flex', alignItems: 'center'}}>
+                <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 18, position: 'relative', top: -33, left: -70, width: 170}} >Recent Scores</Text>
                 <TouchableOpacity style={{ top: -33, right: 0, position: 'absolute'}}>
-                    <Text style={{fontFamily: RighteousFont, color: '#18A5C2', fontSize: 13, marginTop: 7}} >View All</Text>
+                    {/* <Text style={{fontFamily: RighteousFont, color: '#18A5C2', fontSize: 13, marginTop: 7}} >View All</Text> */}
+
                 </TouchableOpacity>
+
+                <Image style={{width: 50, height: 50, position: 'absolute', left: 30, top: 50}} source={{uri: recentMatch.team1[1]}}></Image>
+                <Image style={{width: 50, height: 50, position: 'absolute', right: 30, top: 50}} source={{uri: recentMatch.team2[1]}}></Image>
+
+                <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 10, marginTop: 7,  position: 'absolute', left: 30 - 5, top: 100, textAlign: 'center', width: 60}} >{recentMatch.team1[0]}</Text>
+                <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 10, marginTop: 7,  position: 'absolute', right: 30 - 5, top: 100, textAlign: 'center', width: 60}} >{recentMatch.team2[0]}</Text>
+
+                <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 13, marginTop: 7,  position: 'absolute', top: 20, textAlign: 'center'}} >Full Time</Text>
+
+                <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 35, marginTop: 7,  position: 'absolute', top: 50, textAlign: 'center', letterSpacing: 15}} >{recentMatch.score}</Text>
+
             </View>
         
         )
@@ -181,7 +277,8 @@ export default function App() {
 
                 </TouchableOpacity> */}
                 {shouldDisplayMatches && upcomingMatches.map((match, index) => (
-                    <TouchableOpacity 
+                    <TouchableOpacity
+                    onPress={async() => { await storeData('match', JSON.stringify(match)); navigation.navigate('MatchInfo')}} 
                     key={index}
                     style={{position: 'relative', width: '95%', height: 60, backgroundColor:'#222232', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'row'}}
                     >
@@ -214,9 +311,9 @@ export default function App() {
             
 
             <View style={{width: '100%', position: 'relative', marginTop: 160, display: 'flex', alignItems: 'center', paddingBottom: 150}}>
-                <LiveMatchScore />
+                <RecentMatchScore />
                 <FTMatches title={'Upcoming Matches'} />
-                <FTMatches title={'Watching'} />
+                {/* <FTMatches title={'Watching'} /> */}
             </View>
 
         </ScrollView>
