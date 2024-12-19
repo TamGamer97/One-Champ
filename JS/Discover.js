@@ -3,9 +3,13 @@ import { StyleSheet, Text, View, Image, Appearance, TouchableOpacity, TextInput,
 import { StatusBar } from 'expo-status-bar';
 
 import * as Font from "expo-font";
-
 import { vw, vh } from 'react-native-expo-viewport-units';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { load, save, fetchData, sendData, supabase } from './Functions';
+
 import { Snackbar } from 'react-native-paper';
+
+
 
 
 
@@ -67,19 +71,18 @@ export default function App({navigation}) {
         
         console.log('finding pm fixtures')
         
-        var pmFixtures = await fetch('https://one-champ-api-1.onrender.com/Premier-League-Fixtures', {
+        var pmFixtures = await fetch('https://onechamp-api.onrender.com/Premier-League-Fixtures', {
             headers: {
                 'Content-Type': 'application/json',
                 'User-Agent': 'Mac OS',
             }
         })
         pmFixtures = await pmFixtures.json()
-        // console.log(pmFixtures)
 
         return pmFixtures
     }
 
-    async function formitizeMatch(matchObj)
+    async function formatMatch(matchObj)
     {
         const homeTeam = matchObj.Team1;
         const awayTeam = matchObj.Team2;
@@ -98,7 +101,6 @@ export default function App({navigation}) {
         const homeImage = await getTeamIcon(homeTeam);
         const awayImage = await getTeamIcon(awayTeam);
 
-        // console.log(matchObj.Score)
         // Add the match details to the tempUpcoming array
         return ({
             team1: [homeTeam, homeImage],
@@ -112,12 +114,10 @@ export default function App({navigation}) {
     var teamsInfo = []
     async function getTeamIcon(targetTeam)
     {
-        // console.log('finding team icon')
         async function loadTeamInfo()
         {
-            var informationAboutTeamsFromApi = await fetch('https://one-champ-api-1.onrender.com/Team-Info')  
+            var informationAboutTeamsFromApi = await fetch('https://onechamp-api.onrender.com/Team-Info')  
             informationAboutTeamsFromApi = await informationAboutTeamsFromApi.json()
-            // console.log(informationAboutTeamsFromApi)
             return informationAboutTeamsFromApi
         }
         if(teamsInfo.length < 1)
@@ -144,12 +144,6 @@ export default function App({navigation}) {
         for (teamIndx in teamsInfo)
         {
             var team = teamsInfo[teamIndx]
-            // console.log(targetTeam + ' & ' + team.name)
-            // if(team.name == targetTeam || team.shortName == targetTeam || targetTeam == team.shortName.split(' ')[0])
-            // {
-            //     // console.log(team.crestUrl)
-            //     return team.crestUrl
-            // }
             if(team.name == targetTeam)
             {
                 return team.crestUrl
@@ -180,7 +174,7 @@ export default function App({navigation}) {
         }
             
 
-        const formattedMatch = await formitizeMatch(recentMatchObj)
+        const formattedMatch = await formatMatch(recentMatchObj)
 
         // console.log(formattedMatch)
         setRecentMatch(formattedMatch)
@@ -206,7 +200,7 @@ export default function App({navigation}) {
 
 
 
-    function searchInput()
+    async function searchInput()
     {
         
         if(searchValue == '')
@@ -226,15 +220,13 @@ export default function App({navigation}) {
         console.log('serachng')
         console.log(searchValue)
 
-        setSearchResults(['hello'])
-    }
+        var {data} = await supabase.rpc("search_users", {query_input: searchValue })
 
-    // useEffect(() => {
-    //     // searchInput()
-    //     console.log('hello')
-    //     setSnackText('Nothing to search')
-    //     onToggleSnackBar()
-    // }, [])
+
+        console.log(data)
+        
+        setSearchResults(data)
+    }
 
     function changeSearchType(searchType)
     {
@@ -242,31 +234,31 @@ export default function App({navigation}) {
         setSearchType(searchType)
         
         matchesRef.current.setNativeProps({
-            style: { opacity: 0.6 }, // Update the opacity here
+            style: { opacity: 0.6 },
         });
         leaguesRef.current.setNativeProps({
-            style: { opacity: 0.6 }, // Update the opacity here
+            style: { opacity: 0.6 },
         });
         usersRef.current.setNativeProps({
-            style: { opacity: 0.6 }, // Update the opacity here
+            style: { opacity: 0.6 },
         });
 
         if(searchType == 1)
         {
             matchesRef.current.setNativeProps({
-                style: { opacity: 1 }, // Update the opacity here
+                style: { opacity: 1 },
               });
         }
         if(searchType == 2)
         {
             leaguesRef.current.setNativeProps({
-                style: { opacity: 1 }, // Update the opacity here
+                style: { opacity: 1 },
             });
         }
         if(searchType == 3)
         {
             usersRef.current.setNativeProps({
-                style: { opacity: 1 }, // Update the opacity here
+                style: { opacity: 1 },
             });
         }
         
@@ -307,8 +299,6 @@ export default function App({navigation}) {
                         <TouchableOpacity onPress={() => {navigation.navigate('LeagueInfo')}}
                             style={{position: 'relative', width: '95%', height: 60, backgroundColor:'#222232', borderRadius: 10, display: 'flex', alignItems: 'center', flexDirection: 'row'}}
                             >
-                            {/* You can add content inside the TouchableOpacity here if needed */}
-                            
                             <Image source={{uri: 'https://b.fssta.com/uploads/application/soccer/competition-logos/EnglishPremierLeague.png'}}  style={{width: 30, height: 30, left: 20}} />
 
                         
@@ -317,11 +307,9 @@ export default function App({navigation}) {
 
                         </TouchableOpacity>
 
-                        <TouchableOpacity onPress={() => {navigation.navigate('LeagueInfo')}}
-                            style={{position: 'relative', width: '95%', height: 60, backgroundColor:'#222232', borderRadius: 10, display: 'flex', alignItems: 'center', flexDirection: 'row'}}
+                        <TouchableOpacity
+                            style={{position: 'relative', width: '95%', height: 60, opacity: 0.3, backgroundColor:'#222232', borderRadius: 10, display: 'flex', alignItems: 'center', flexDirection: 'row'}}
                             >
-                            {/* You can add content inside the TouchableOpacity here if needed */}
-                            
                             <Image source={{uri: 'https://static.wikia.nocookie.net/fifa/images/a/ad/ChampionsLeagueLogo.png/revision/latest/scale-to-width-down/250?cb=20180912190604'}}  style={{width: 30, height: 30, left: 20}} />
 
                         
@@ -330,11 +318,9 @@ export default function App({navigation}) {
 
                         </TouchableOpacity>
 
-                        <TouchableOpacity onPress={() => {navigation.navigate('LeagueInfo')}}
-                            style={{position: 'relative', width: '95%', height: 60, backgroundColor:'#222232', borderRadius: 10, display: 'flex', alignItems: 'center', flexDirection: 'row'}}
+                        <TouchableOpacity
+                            style={{position: 'relative', width: '95%', height: 60, opacity: 0.3, backgroundColor:'#222232', borderRadius: 10, display: 'flex', alignItems: 'center', flexDirection: 'row'}}
                             >
-                            {/* You can add content inside the TouchableOpacity here if needed */}
-                            
                             <Image source={{uri: 'https://www.citypng.com/public/uploads/preview/qatar-2022-fifa-world-cup-logo-hd-png-701751694776730e3cup6kwl4.png'}}  style={{width: 30, height: 30, left: 20}} />
 
                         
@@ -344,20 +330,23 @@ export default function App({navigation}) {
                         </TouchableOpacity>
                     </View>
 
-                    : // otherwise dispkay search resultrs
-                    <ScrollView contentContainerStyle={{width: 340, borderRadius: 10, marginTop: 0, display: 'flex', alignItems: 'start', gap: 8, flexGrow: 1}}>
-                        <TouchableOpacity 
-                            style={{position: 'relative', width: '100%', height: 60, backgroundColor:'#222232', borderRadius: 10, display: 'flex', alignItems: 'center', flexDirection: 'row'}}
-                            >
-                            {/* You can add content inside the TouchableOpacity here if needed */}
-                            
-                            <Image source={{uri: 'https://b.fssta.com/uploads/application/soccer/competition-logos/EnglishPremierLeague.png'}}  style={{width: 30, height: 30, left: 20}} />
-
+                    : // otherwise display search results
+                    <ScrollView >
                         
-                            <Text style={{textAlign: 'center', color: 'white', fontFamily: RighteousFont, fontSize: 15, marginLeft: 30}}>Premiure League</Text>
 
-
-                        </TouchableOpacity>
+                        {searchResults.map((match, index) => (
+                            <TouchableOpacity onPress={() => { save('PlayerInfoParams', JSON.stringify({'returnPage': 'Discover', 'userID': match.id, 'username': match.username, 'userInfo': {'wins': match.userInfo.wins, 'loss': match.userInfo.loss, 'score': match.userInfo.score}}) ); navigation.navigate('PlayerInfo')}}  key={index} style={{width: vw(90), height: 70, backgroundColor: '#222232', borderRadius: 20, marginTop: 10, position: 'relative', display: 'flex', justifyContent: 'flex-start', alignItems: 'flex-start', flexDirection: 'row'}}>
+                                <Image source={{uri: match.preferences.profile}} style={{width: 40, height: 40, left: 20, top: 13}} />
+                                
+                                <View style={{display: 'flex', flexDirection: 'column'}}>
+                                    <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 13, left: 30, top: 12}} >{match.userInfo.wins}-{match.userInfo.loss}</Text>
+                                    <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 18, left: 30, top: 12}} >{match.username}</Text>
+                                </View>
+                    
+                                <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 25, right: 30, top: 17, position: 'absolute'}} >{match.userInfo.score}</Text>
+                            </TouchableOpacity>
+                        ))}
+                
 
                     </ScrollView>
                 }
@@ -374,9 +363,7 @@ export default function App({navigation}) {
         duration={3000} // duration in milliseconds
         action={{   
           label: 'dismiss',
-          onPress: () => {
-            // Do something if the user presses the action button
-          },
+          onPress: () => {},
         }}
         style={{ backgroundColor: '#181C25', borderColor: '#222232', borderWidth: 1, zIndex: 100, elevation: 5, marginBottom: 100 }} // customize background color
       >
@@ -428,9 +415,6 @@ export default function App({navigation}) {
                 <View style={{ display: 'flex', alignItems: 'center'}}>
                     <FTMatches title={'Search'} />
                 </View>
-                
-
-
                 }
                 
             </View>

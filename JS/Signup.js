@@ -2,19 +2,16 @@ import React, {useEffect, useState} from 'react';
 import { StyleSheet, Text, View, Image, Appearance, TouchableOpacity, ImageBackground, TextInput, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
-import { vw, vh } from 'react-native-expo-viewport-units';
-import { Snackbar } from 'react-native-paper';
-
-
 import * as Font from "expo-font";
-
-import Swiper from 'react-native-swiper'
-
-import 'react-native-url-polyfill/auto'
-import * as SecureStore from 'expo-secure-store'
-import { createClient } from '@supabase/supabase-js'
-
+import { vw, vh } from 'react-native-expo-viewport-units';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { load, save, fetchData, sendData, supabase } from './Functions';
+
+import { Snackbar } from 'react-native-paper';
+import 'react-native-url-polyfill/auto'
+
+
+
 
  
 export default function App({navigation}) {
@@ -36,16 +33,47 @@ export default function App({navigation}) {
     const onToggleSnackBar = () => setVisible(!visible);
     const onDismissSnackBar = () => setVisible(false);
 
+    function validateEmail(email) {
+        // Check basic email format with regex
+        const basicRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!basicRegex.test(email)) {
+            return false;
+        }
+    
+        // Split email into local part and domain part
+        const [localPart, domainPart] = email.split("@");
+    
+        // Validate allowed characters in local part
+        const allowedLocalRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+$/;
+        if (!allowedLocalRegex.test(localPart)) {
+            return false;
+        }
+    
+        // Validate domain format (subdomains and main domain)
+        const domainParts = domainPart.split(".");
+        if (domainParts.some(part => part.length < 2 || part.length > 63)) {
+            return false;
+        }
+    
+        // Check domain characters (letters, digits, hyphens, no consecutive hyphens)
+        const allowedDomainRegex = /^[a-zA-Z0-9-]+$/;
+        if (!domainParts.every(part => allowedDomainRegex.test(part))) {
+            return false;
+        }
+    
+        // Check for valid TLD (length 2-24, alphanumeric only)
+        const tld = domainParts[domainParts.length - 1];
+        if (tld.length < 2 || tld.length > 24 || !/^[a-zA-Z0-9]+$/.test(tld)) {
+            return false;
+        }
+    
+        // All checks passed
+        return true;
+    }
+
     async function startApp()
     {
         console.log('Starting')
-
-        // const loginInfo = await getData('login')
-
-        // if(loginInfo != undefined)
-        // {
-        //     navigation.navigate('Home')
-        // }
 
         if(isSignupPage)
         {
@@ -55,13 +83,33 @@ export default function App({navigation}) {
             console.log('pass: ' + password)
             console.log('rePass: ' + rePass)
 
+            // Input Validation
+            const isValidEmail = validateEmail(emailAdr)
+            
+            if(password.length < 8)
+            {
+                setSnackText('Password must be atleast 8 characters')
+                onToggleSnackBar()
+                return
+            }
+
+            if(isValidEmail == false)
+            {
+                setSnackText('Invalid email')
+                onToggleSnackBar()
+                return
+            }
+
             if(password && emailAdr && rePass)
             {
                 if(password == rePass)
                 {
+                    console.log('SIGNING UP')
                     startDatabaseApp('signup')
                 }else{
                     console.log('Passwords do not match')
+                    setSnackText('Passwords dont match')
+                    onToggleSnackBar()
                 }
             }else{
                 console.log('fill in all forms')
@@ -91,136 +139,118 @@ export default function App({navigation}) {
     const [emailAdr, setEmailAdr] = useState('')
     const [password, setPass] = useState('')
     const [rePass, setRePass] = useState('')
-    const [userIDState, setUserId] = useState('')
+    const [userIDState, setUserId] = useState(undefined)
 
-
-    // Supabase
-
-    const supabaseUrl = 'https://nxnlueqwonfremybejbm.supabase.co'
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54bmx1ZXF3b25mcmVteWJlamJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTE2NzAzODcsImV4cCI6MjAwNzI0NjM4N30.6cfViULSoEKQi0ImV8xTFwMoGL0uSy31aPRU-yUBFZ4'
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-        auth: {
-          persistSession: false,
-        }})
-
-
-    const fetchData = async () => {
-        const {data, error} = await supabase
-            .from('accounts') // table name
-            .select()
-        
-        if(error)
-        {
-            console.log(error)
-        }
-
-        if(data)
-        {
-            return data
-        }
-    }
-
-    const sendData = async () => {
-        console.log('sending data')
-
-        const {data, error} = await supabase
-            .from('accounts')
-            .insert([{'email': 'newemail@gmail.com', 'password': 'newpass', 'username': 'newuser'}])
-        
-        if(error)
-        {
-            console.log(error)
-        }
-        if(data)
-        {
-            return data
-        }
-    }
-
-    const storeData = async (key, value) => {
-        try {
-          await AsyncStorage.setItem(key, value);
-          console.log('Data saved successfully');
-        } catch (e) {
-          // saving error
-          console.error('Failed to save the data to the storage');
-        }
-      };
-
-      const getData = async (key) => {
-        try {
-          const token = await AsyncStorage.getItem(key);
-          if(token !== null) {
-            console.log('Token retrieved:', token);
-            return token
-          } else {
-            console.log('No token found');
-          }
-        } catch (e) {
-          // error reading value
-          console.error('Failed to fetch the data from storage');
-        }
-      };
-      
-
-    function uniqueAccountId(email) // replace this function with an API request to the server /unique-user-id
+    async function uniqueAccountId(email)
     {
-        // Get the first 4 characters of the username (or less if the username is shorter)
-        let shortUsername = email.substring(0, 4);
+        var USERID = await fetch('https://onechamp-api.onrender.com/generate-user-id/' + email, {
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mac OS',
+            }
+        })
+        USERID = await USERID.text()
+        console.log(USERID)
+        console.log('Personal USERID recieved: ' + USERID)
 
-        // Get the current date and time
-        let now = new Date();
-        
-        // Extract time (in milliseconds) and date components
-        let timeInMillis = now.getTime(); // Returns the time in milliseconds since Jan 1, 1970
+        return USERID
 
-        // Combine the shortUsername, timeInMillis, and year to form the userId
-        let userId = `${shortUsername}${timeInMillis}`;
 
-        console.log('OFFICAL USERID: ' + userId)
-        return userId;
+    }
+
+    async function passwordCrypter(pass, isEncrypt)
+    {
+        var cryptedPass = await fetch('https://onechamp-api.onrender.com/crypt-password/' + pass + '/' + isEncrypt, {
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Mac OS',
+            }
+        })
+        cryptedPass = await cryptedPass.text()
+
+        return cryptedPass
+    }
+
+
+    async function checkEmailExists(email)
+    {
+        const { data, error } = await supabase
+            .from('accounts')
+            .select('id')
+            .ilike('email', email);
+
+        if (error) {
+            console.log("Error checking email:", error);
+            setSnackText('Error, Try again later')
+            onToggleSnackBar()
+        } else if (data.length > 0) {
+            console.log("Email exists in the database.");
+            setSnackText('Email already exists')
+            onToggleSnackBar()
+        } else {
+            console.log("Email does not exist.");
+            return true
+        }
+
+        return false
+    }
+
+    async function checkEmailPassMatchFound(email, password)
+    {
+        console.log('---- run login -----')
+
+        var encryptedPassword = await passwordCrypter(password, true)
+        console.log(encryptedPassword)
+
+        const { data, error } = await supabase
+            .from('accounts')
+            .select('id')
+            .ilike('email', email)
+            .eq('password', encryptedPassword);
+
+        if (error) {
+            console.error("Error checking email and password:", error);
+            setSnackText('Error, Try again later')
+            onToggleSnackBar()
+        } else if (data.length > 0) {
+            console.log("Email and password match found.");
+            return true
+        } else {
+            console.log("No matching email and password.");
+            setSnackText('Incorrect email or password')
+            onToggleSnackBar()
+        }
+
+        return false
     }
 
     async function startDatabaseApp(type)
     {
+
         if(type == 'signup')
         {
-            // check if email exists
-            const {data, error} = await supabase
-                .from('accounts') // table name
-                .select()
-            
-            console.log(data)
 
-            let userID = uniqueAccountId(emailAdr.split('@')[0])
-            // let username = emailAdr.split('@')[0]
-            let username = userID
+            const signupAllowed = await checkEmailExists(emailAdr)
 
-            setUserId(username)
-            
-            let foundEmail = false
-            var x = 0
-            for (x = 0; x < data.length; x++)
+            if(signupAllowed == true)
             {
-                const row = data[x]
-                if(row.email == emailAdr)
-                {
-                    foundEmail = true
-                    break
-                }
-            }
-            if(foundEmail)
-            {
-                console.log('Email already exists')
-                setSnackText('Email already exists')
-                onToggleSnackBar()
-            }else{
-                console.log('Proceed to creating account')
+                console.log('Proceed to creating account ' + emailAdr)
+
+                let userID = await uniqueAccountId(emailAdr)
+                console.log('Unique id created')
+                let username = userID
+
+                setUserId(username)
+
+                //Encrypt password
+
+                const encryptedPassword = await passwordCrypter(password, true)
+                
                 const {data, error} = await supabase
                     .from('accounts')
-                    .insert([{'email': emailAdr, 'password': password, 'username': username, id: username, name: '', friendsList: [ 'default' ], preferences: {'default': 'default'}, predictedMatches: [ {'default': 'default'} ], userInfo: {score: 0, wins: 0, loss: 0}  }])
+                    .insert([{'email': emailAdr, 'password': encryptedPassword, 'username': username, id: username, friendsList: [ 'default' ], preferences: {'profile': 'https://raw.githubusercontent.com/TamGamer97/One-Champ/refs/heads/main/Images/defaultProfile.png', 'notifications': false}, userInfo: {score: 0, wins: 0, loss: 0}  }])
                     .select() // needed or else data is not returned, but insertion still works
-
+    
                     if(data)
                     {
                         console.log('Account Most likely Created')
@@ -236,58 +266,36 @@ export default function App({navigation}) {
                         setSnackText('Error: ' + error)
                         onToggleSnackBar()
                     }
+
             }
 
         }
         if(type == 'login')
         {
-            const {data, error} = await supabase
-                .from('accounts') // table name
-                .select()
 
-            console.log(data)
+            const loginAllowed = await checkEmailPassMatchFound(emailAdr, password)
 
-            let emailFound = false
-            let loginSuccess = false
-            for (var x = 0; x < data.length; x++)
-            {
-                const row = data[x] 
-                if(row.email == emailAdr)
-                {
-                    console.log('Email Found')
-                    emailFound = true
-                    
-                    if(row.password == password)
-                    {
-                        console.log('Password Matches')
+            if(loginAllowed == true)
+            {    
+                console.log('Login Successful. Redirecting')
 
-                        console.log('Login Successful. Redirecting')
-                        loginSuccess = true
+                console.log('retrieving user id')
+                const { data, error } = await supabase
+                    .from('accounts')
+                    .select('id')
+                    .ilike('email', emailAdr);
 
-                        const loginInfo = [emailAdr, password, userIDState]
+                const userIdDB = data[0].id
+                console.log(userIdDB)
+                setUserId(userIdDB)
 
-                        await storeData('login', JSON.stringify(loginInfo))
-                        
+                const loginInfo = [emailAdr, password, userIdDB]
 
-                        navigation.navigate('Home')
-                    }else{
-                        break
-                    }
-                }
+                await save('login', JSON.stringify(loginInfo))
+
+                navigation.navigate('Home')
+
             }
-            if(!emailFound)
-            {
-                console.log('Email does not exist')
-                setSnackText('Incorrect email or password')
-                onToggleSnackBar()
-            }
-            if(emailFound && !loginSuccess)
-            {
-                console.log('Password does not match')
-                setSnackText('Incorrect email or password')
-                onToggleSnackBar()
-            }
-
         }
     }
 
@@ -336,7 +344,7 @@ export default function App({navigation}) {
                     </TouchableOpacity>
 
                 </KeyboardAvoidingView>
-                : 
+                : // Otherwise, JSX expression
                     <KeyboardAvoidingView behavior={'padding'} style={{width: vw(100), height: 300, display: 'flex', alignItems: 'center', position: 'absolute', bottom: 10}}>
                         <Text style={{fontFamily: RighteousFont, fontSize: 20, color: 'white', position: 'absolute', top: -10, left: 30}}>
                             Email Address
@@ -365,19 +373,17 @@ export default function App({navigation}) {
 
 
         <Snackbar
-        visible={visible}
-        onDismiss={onDismissSnackBar}
-        duration={5000} // duration in milliseconds
-        action={{   
-          label: 'dismiss',
-          onPress: () => {
-            // Do something if the user presses the action button
-          },
-        }}
-        style={{ backgroundColor: '#181C25', borderColor: '#222232', borderWidth: 1 }} // customize background color
-      >
-        {snackTxt}
-      </Snackbar>
+            visible={visible}
+            onDismiss={onDismissSnackBar}
+            duration={5000} // duration in milliseconds
+            action={{   
+            label: 'dismiss',
+            onPress: () => {},
+            }}
+            style={{ backgroundColor: '#181C25', borderColor: '#222232', borderWidth: 1 }}
+        >
+            {snackTxt}
+        </Snackbar>
 
 
         </ImageBackground>

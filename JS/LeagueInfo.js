@@ -4,15 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 
 import * as Font from "expo-font";
 import { vw, vh } from 'react-native-expo-viewport-units';
-
-import SwitchSelector from 'react-native-switch-selector';
-
-import { useIsFocused } from "@react-navigation/native";
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-
-import { createClient } from '@supabase/supabase-js'
+import { load, save, fetchData, sendData, supabase } from './Functions';
 
 export default function App({navigation}) {
 
@@ -26,58 +19,7 @@ export default function App({navigation}) {
 
     fetchFont()
 
-    // Supabase
-    const supabaseUrl = 'https://nxnlueqwonfremybejbm.supabase.co'
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54bmx1ZXF3b25mcmVteWJlamJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTE2NzAzODcsImV4cCI6MjAwNzI0NjM4N30.6cfViULSoEKQi0ImV8xTFwMoGL0uSy31aPRU-yUBFZ4'
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-         auth: {
-           persistSession: false,
-         }})
-
     const [RighteousFont, setRighteousFont] = useState('')
-
-
-    const storeData = async (key, value) => {
-        try {
-          await AsyncStorage.setItem(key, value);
-          // console.log('Data saved successfully');
-        } catch (e) {
-          // saving error
-          // console.error('Failed to save the data to the storage');
-        }
-      };
-
-      const getData = async (key) => {
-        try {
-          const token = await AsyncStorage.getItem(key);
-          if(token !== null) {
-            // console.log('Token retrieved:', token);
-            return token
-          } else {
-            // console.log('No token found');
-          }
-        } catch (e) {
-          // error reading value
-          // console.error('Failed to fetch the data from storage');
-        }
-      };
-
-
-    const fetchData = async (tableName) => {
-      const {data, error} = await supabase
-          .from(tableName) // table name
-          .select()
-      
-      if(error)
-      {
-          console.log(error)
-      }
-
-      if(data)
-      {
-          return data
-      }
-  }
 
 
   const [pmTable, setPmTable] = useState([])
@@ -130,7 +72,7 @@ export default function App({navigation}) {
   {
     
       console.log('getting pm table data')
-      var pmTableData = await fetch('https://one-champ-api-1.onrender.com/Premier-League-Table') 
+      var pmTableData = await fetch('https://onechamp-api.onrender.com/premier-league-table') 
       pmTableData = await pmTableData.json()
       console.log('through')
       console.log(pmTableData)
@@ -184,9 +126,9 @@ export default function App({navigation}) {
                         <Text style={{ fontFamily: 'RighteousFont', color: 'white',  fontSize: 15,  whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} numberOfLines={1} ellipsizeMode="tail"> {team.teamName} </Text>
                       </View>
 
-                      <Text style={{fontFamily: RighteousFont, color: 'white', opacity: 0.6, fontSize: 15, marginLeft: 0, marginTop: 7, position: 'absolute', right: 117, textAlign: 'center', width: 15}} >{team.wins}</Text>
+                      <Text style={{fontFamily: RighteousFont, color: 'white', opacity: 0.6, fontSize: 15, marginLeft: 0, marginTop: 7, position: 'absolute', right: 114, textAlign: 'center', width: 20}} >{team.wins}</Text>
                       <Text style={{fontFamily: RighteousFont, color: 'white', opacity: 0.6, fontSize: 15, marginLeft: 0, marginTop: 7, position: 'absolute', right: 90}} >{team.draws}</Text>
-                      <Text style={{fontFamily: RighteousFont, color: 'white', opacity: 0.6, fontSize: 15, marginLeft: 0, marginTop: 7, position: 'absolute', right: 57, textAlign: 'center', width: 15}} >{team.losses}</Text>
+                      <Text style={{fontFamily: RighteousFont, color: 'white', opacity: 0.6, fontSize: 15, marginLeft: 0, marginTop: 7, position: 'absolute', right: 54, textAlign: 'center', width: 20}} >{team.losses}</Text>
                       <Text style={{fontFamily: RighteousFont, color: 'white', opacity: 0.6, fontSize: 15, marginLeft: 0, marginTop: 7, position: 'absolute', right: 10, textAlign: 'center', width: 20}} >{team.points}</Text>
                   </View>
                 

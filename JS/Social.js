@@ -3,15 +3,13 @@ import { StyleSheet, Text, View, Image, Appearance, TouchableOpacity, TextInput 
 import { StatusBar } from 'expo-status-bar';
 
 import * as Font from "expo-font";
-
 import { vw, vh } from 'react-native-expo-viewport-units';
-
-import { createClient } from '@supabase/supabase-js'
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { load, save, fetchData, sendData, supabase } from './Functions';
 
 
-export default function App() {
+
+export default function App({navigation}) {
 
     const fetchFont = async () => {
         await Font.loadAsync({
@@ -22,54 +20,16 @@ export default function App() {
     }
     fetchFont()
 
-    // Supabase
-    const supabaseUrl = 'https://nxnlueqwonfremybejbm.supabase.co'
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54bmx1ZXF3b25mcmVteWJlamJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTE2NzAzODcsImV4cCI6MjAwNzI0NjM4N30.6cfViULSoEKQi0ImV8xTFwMoGL0uSy31aPRU-yUBFZ4'
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-         auth: {
-           persistSession: false,
-         }})
-
     const [RighteousFont, setRighteousFont] = useState('')
 
     const [friendsInfo, setFriendsInfo] = useState([])
-    
-    const fetchData = async () => {
-        const {data, error} = await supabase
-            .from('accounts') // table name
-            .select()
-        
-        if(error)
-        {
-            console.log(error)
-        }
 
-        if(data)
-        {
-            return data
-        }
-    }
-
-    const getData = async (key) => {
-        try {
-          const token = await AsyncStorage.getItem(key);
-          if(token !== null) {
-            // console.log('Token retrieved:', token);
-            return token
-          } else {
-            // console.log('No token found');
-          }
-        } catch (e) {
-          // error reading value
-          // console.error('Failed to fetch the data from storage');
-        }
-      };
-
+    const [userInfo, setUserInfo] = useState({'loss': '-', 'wins': '-', 'score': '-', 'username': '', 'userID': ''})
     async function getFriendsInfo()
     {
         const accountData = await fetchData()
 
-        var login = await getData('login')
+        var login = await load('login')
         login = JSON.parse(login)
 
         var friendsInfoList = []
@@ -81,16 +41,18 @@ export default function App() {
             if(userItem.id == login[2])
             {
                 // found our user
+                
+                setUserInfo({'loss': userItem.userInfo.loss, 'wins': userItem.userInfo.wins, 'score': userItem.userInfo.score, 'username': userItem.username, 'userID': userItem.id})
 
                 for (var friendsIndx in userItem.friendsList)
                 {
-                    // searching thorugh friends list
+                    // searching through friends list
                     var friendId = userItem.friendsList[friendsIndx]
 
                     if(friendId == 'default') { continue }
                     
                     // find friendsInfo
-                    var friendData = {username: '', win: '', loss: '', score: '', profileImage: 'https://crests.football-data.org/1044.png'}
+                    var friendData = {username: '', win: '', loss: '', score: '', profileImage: userItem.preferences.profile, userID: ''}
 
                     for (var otherUsersIndx in accountData)
                     {
@@ -103,6 +65,7 @@ export default function App() {
                             friendData['loss'] = otherUserItem.userInfo.loss
                             friendData['score'] = otherUserItem.userInfo.score
                             friendData['username'] = otherUserItem.username
+                            friendData['userID'] = otherUserItem.id
 
                             break
                         }
@@ -137,34 +100,34 @@ export default function App() {
             <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 20, position: 'absolute', top: 150, left: 30, width: 250}} >Profile Score</Text>
             
             <View style={{width: vw(100), height: vh(60), top: 190, display: 'flex', alignItems: 'center'}}>
-                <View style={{width: vw(90), height: 80, backgroundColor: '#222232', borderRadius: 20, marginBottom: 50}}>
-                    <Text style={{fontFamily: RighteousFont, color: '#FF6E6E', fontSize: 13, textAlign: 'center', marginTop: 5}} >TamGamer97</Text>
+                <TouchableOpacity onPress={() => { save('PlayerInfoParams', JSON.stringify({'returnPage': 'Social', 'userID': userInfo.userID, 'username': userInfo.username, 'userInfo': {'wins': userInfo.wins, 'loss': userInfo.loss, 'score': userInfo.score}}) ); navigation.navigate('PlayerInfo')}} style={{width: vw(90), height: 80, backgroundColor: '#222232', borderRadius: 20, marginBottom: 50}}>
+                    <Text style={{fontFamily: RighteousFont, color: '#FF6E6E', fontSize: 13, textAlign: 'center', marginTop: 5}} >{userInfo.username}</Text>
 
 
                     <View style={{display: 'flex', flexDirection: 'row', gap: 20, position: 'relative', flexDirection: 'center'}}>
                     
-                        <Text style={{fontFamily: RighteousFont, color: '#FF6E6E', fontSize: 30, textAlign: 'center', marginTop: 5}} >300</Text>
+                        <Text style={{fontFamily: RighteousFont, color: '#FF6E6E', fontSize: 30, textAlign: 'center', marginTop: 5}} >{userInfo['score']}</Text>
 
                         <View style={{position: 'absolute', top: 0, left: 50}}>
-                            <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 23, textAlign: 'center', color: '#FF6E6E'}} >5</Text>
+                            <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 23, textAlign: 'center', color: '#FF6E6E'}} >{userInfo.wins}</Text>
                             <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 11, textAlign: 'center', color: '#FF6E6E'}} >wins</Text>
 
                         </View>
 
 
                         <View style={{position: 'absolute', top: 0, right: 50}}>
-                            <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 23, textAlign: 'center', color: '#FF6E6E'}} >5</Text>
+                            <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 23, textAlign: 'center', color: '#FF6E6E'}} >{userInfo.loss}</Text>
                             <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 11, textAlign: 'center', color: '#FF6E6E'}} >Loss</Text>
 
                         </View>
 
                     </View>
 
-                </View>
+                </TouchableOpacity>
                 <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 20, position: 'absolute', top: 100, left: 30, width: 250}} >Friends Scores</Text>
 
                 {friendsInfo.map((match, index) => (
-                    <TouchableOpacity key={index} style={{width: vw(90), height: 70, backgroundColor: '#222232', borderRadius: 20, marginTop: 10, position: 'relative', display: 'flex', justifyContent: 'flex-start', alignItems: 'flex-start', flexDirection: 'row'}}>
+                    <TouchableOpacity onPress={() => { save('PlayerInfoParams', JSON.stringify({'returnPage': 'Social', 'userID': match.userID, 'username': match.username, 'userInfo': {'wins': match.win, 'loss': match.loss, 'score': match.score}}) ); navigation.navigate('PlayerInfo')}} key={index} style={{width: vw(90), height: 70, backgroundColor: '#222232', borderRadius: 20, marginTop: 10, position: 'relative', display: 'flex', justifyContent: 'flex-start', alignItems: 'flex-start', flexDirection: 'row'}}>
                         <Image source={{uri: match.profileImage}} style={{width: 40, height: 40, left: 20, top: 13}} />
                         
                         <View style={{display: 'flex', flexDirection: 'column'}}>

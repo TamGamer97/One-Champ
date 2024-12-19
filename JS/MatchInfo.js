@@ -4,15 +4,17 @@ import { StatusBar } from 'expo-status-bar';
 
 import * as Font from "expo-font";
 import { vw, vh } from 'react-native-expo-viewport-units';
-
-import SwitchSelector from 'react-native-switch-selector';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { load, save, fetchData, sendData, supabase } from './Functions';
 
 import { useIsFocused } from "@react-navigation/native";
+import SwitchSelector from 'react-native-switch-selector';
+import { PieChart } from "react-native-gifted-charts";
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
-import { createClient } from '@supabase/supabase-js'
+
+
 
 export default function App({navigation}) {
 
@@ -30,37 +32,9 @@ export default function App({navigation}) {
 
     const [selectedIndex, setSelectedIndex] = useState(0);
 
-
-    const storeData = async (key, value) => {
-        try {
-          await AsyncStorage.setItem(key, value);
-          // console.log('Data saved successfully');
-        } catch (e) {
-          // saving error
-          // console.error('Failed to save the data to the storage');
-        }
-      };
-
-      const getData = async (key) => {
-        try {
-          const token = await AsyncStorage.getItem(key);
-          if(token !== null) {
-            // console.log('Token retrieved:', token);
-            return token
-          } else {
-            // console.log('No token found');
-          }
-        } catch (e) {
-          // error reading value
-          // console.error('Failed to fetch the data from storage');
-        }
-      };
-
-
     const [teamImage, setTeamImage] = useState([])
     const [teamNames, setTeamNames] = useState([])
-    
-    var currentDBMatchID;
+
 
     const [predictChoice, setPredictChoice] = useState(3)
 
@@ -68,136 +42,33 @@ export default function App({navigation}) {
 
     const [canPredict, setCanPredict] = useState(true)
 
-    // Supabase
-    const supabaseUrl = 'https://nxnlueqwonfremybejbm.supabase.co'
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54bmx1ZXF3b25mcmVteWJlamJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTE2NzAzODcsImV4cCI6MjAwNzI0NjM4N30.6cfViULSoEKQi0ImV8xTFwMoGL0uSy31aPRU-yUBFZ4'
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-         auth: {
-           persistSession: false,
-         }})
-    
+    const [myUserId, setMyUserId] = useState('')
 
-    const fetchData = async (tableName) => {
-      const {data, error} = await supabase
-          .from(tableName) // table name
-          .select()
-      
-      if(error)
-      {
-          console.log(error)
-      }
-
-      if(data)
-      {
-          return data
-      }
-  }
-
-    const createActiveMatch = async (leagueCode, team1, team2, startTime, predictions, matchId) => {
-        console.log('sending data')
-
-        const {data, error} = await supabase
-            .from('activeMatches')
-            .insert([{'League': leagueCode, 'Team1': team1, 'Team2': team2, 'StartTime': startTime, 'Predictions': predictions, 'matchID': matchId}])
+    const createAndManageActiveMatches = async (leagueCode, team1, team2, startTime, matchId) => {
         
-        if(error)
-        {
-            console.log(error)
-        }
-        if(data)
-        {
-            return data
-        }
+      var {data} = await supabase.rpc("check_or_create_active_match", {match_id_input: matchId, league_input: leagueCode, team1_input: team1, team2_input: team2, start_time_input: startTime })
+        
     }
-
-    const updatePredictionDB = async (predictionData) => {
-        // console.log('sending data')
-        // console.log(currentMatchID)
-
-        const {data, error} = await supabase
-            .from('activeMatches')
-            .update({
-              'Predictions': predictionData
-          })
-          .eq('matchID', currentMatchID); // Match the row with the specific matchId
-
-        if(error)
-        {
-            console.log(error)
-        }
-        if(data)
-        {
-          console.log(data)
-            return data
-        }
-    }
-
-    const updatePredictionDBAccounts = async (predictionData) => {
-      // console.log('sending data')
-      // console.log(currentMatchID)
-
-      var login = await getData('login')
-      login = JSON.parse(login)
-      
-      // console.log(predictionData)
-
-      const {data, error} = await supabase
-          .from('accounts')
-          .update({
-            'predictedMatches': predictionData
-        })
-        .eq('username', login[2]); // Match the row with the specific matchId
-
-      if(error)
-      {
-          console.log(error)
-      }
-      if(data)
-      {
-          console.log(data)
-          return data
-      }
-  }
 
     const isFocused = useIsFocused();
+    
     useEffect(() => {
-
 
         setPredictChoice(3) // 3 so neither teams are selected at start
         setSelectedIndex(0) // resets about and predict to start at about
 
+        load('match')
+          .then((data) => {
+              data = JSON.parse(data)
+          
+                  setTeamImage([data.team1[1], data.team2[1]])
+                  setTeamNames([data.team1[0], data.team2[0]])
 
-        const match = getData('match')
-        .then((data) => {
-            data = JSON.parse(data)
-                // console.log(match)
-        
-                setTeamImage([data.team1[1], data.team2[1]])
-                setTeamNames([data.team1[0], data.team2[0]])
-
-                getMatchStats(data.time, data.league, [data.team1[1], data.team2[1]], [data.team1[0], data.team2[0]])
-            })
+                  getMatchStats(data.time, data.league, [data.team1[1], data.team2[1]], [data.team1[0], data.team2[0]])
+              })
     
         
     }, [isFocused])
-
-    async function getFriendsList(accountData)
-    {
-
-        for (usersIndx in accountData)
-        {
-            const user = accountData[usersIndx]
-
-            var loginInfo = await getData('login')
-            loginInfo = JSON.parse(loginInfo)
-            if(user.email == loginInfo[0])
-            {
-                // found account
-                return user.friendsList
-            }
-        }
-
-    }
 
 
     async function getMatchStats(timeInfo, leagueName, imagesTeam, nameTeams)
@@ -206,11 +77,11 @@ export default function App({navigation}) {
 
         const leagueCodes = {'pm': '1', 'cl': '2', 'wc': '3'}
 
-        // console.log('images')
-        // console.log(imagesTeam)
-        // console.log(timeInfo)
+        var login = await load('login')
+        login = JSON.parse(login)
+        const MYUSERID = login[2]
 
-        // console.log(leagueCodes[leagueName])
+        setMyUserId(MYUSERID)
 
         const matchId = leagueCodes[leagueName] +
         (imagesTeam[0].split('.org/')[1].split('.p')[0]).padStart(4, '0') +
@@ -218,63 +89,80 @@ export default function App({navigation}) {
         timeInfo[0].split('/')[0] + timeInfo[0].split('/')[1] + timeInfo[0].split('/')[2] +
         timeInfo[1].split(':')[0] + timeInfo[1].split(':')[1]
 
-        // console.log(matchId)
-        // console.log('updateingMatchID: ' + matchId)
         setCurrentMatchID(matchId)
 
-        const accountData = await fetchData('accounts')
         checkIfCanPredict(matchId)
 
-        const friendsList = await getFriendsList(accountData)
+        createAndManageActiveMatches(leagueCodes[leagueName], nameTeams[0], nameTeams[1], timeInfo, matchId) // checks if there is an active row for the current match in the activeMatches, if not then creates
 
-        var totalPredictionsCount = {'1': 0, '2': 0}
-        var friendsPredictionsCount = {'1': 0, '2': 0}
-        var friendsPredictionsInfo = []
+        var {data} = await supabase.rpc("get_match_predictions", {p_user_id: MYUSERID, p_match_id: matchId })
 
-        var matchPredictStarted = false
-        for (var activeMatchIndex in activeMatchesData)
+        console.log(data)
+
+        try{ var totalResult1Length = data.total_result.total1.length }
+        catch{ var totalResult1Length = 0 }
+
+        try{ var totalResult2Length = data.total_result.total2.length }
+        catch{ var totalResult2Length = 0 }
+
+        const totalPredictionsCount = totalResult1Length + totalResult2Length
+
+        if(totalPredictionsCount == 0)
         {
-            const activeMatch = activeMatchesData[activeMatchIndex]
-
-            if(activeMatch.matchID == matchId)
-            {
-                // match prediction has started
-                matchPredictStarted = true
-
-
-                for (var userPredictionIndx in activeMatch.Predictions)
-                {
-                    var userPrediction = activeMatch.Predictions[userPredictionIndx]
-
-                    totalPredictionsCount[userPrediction.team] += 1
-
-                    if(friendsList != null )
-                    {
-                      if(friendsList.includes(userPrediction.username))
-                      {
-                        friendsPredictionsCount[userPrediction.team] += 1
-                        friendsPredictionsInfo.push( {'username': userPrediction.username, 'time': userPrediction.time, 'team': userPrediction.team} )
-                      }
-                    }
-
-                }
-
-
-                break
-            }
+          
+          setTotalPredictions([])
+        }else{
+          setTotalPredictions([{value: JSON.parse(((totalResult1Length / totalPredictionsCount)* 100).toFixed(0)), color: '#16B2CA', text: nameTeams[0]}, {value: JSON.parse(((totalResult2Length / totalPredictionsCount)* 100).toFixed(0)), color: '#235D92', text: nameTeams[1]}])
         }
 
-        if(matchPredictStarted == false)
+        if(data.friends_list.length > 0)
         {
-          // console.log('create match')
-          createActiveMatch(leagueCodes[leagueName], nameTeams[0], nameTeams[1], timeInfo, [ {'default': 'default'} ], matchId)
+          var greatestTotalPredictions = totalResult1Length
+
+          var friendsResult1 = 0
+          var friendsResult2 = 0
+  
+          if(totalResult2Length > totalResult1Length) { greatestTotalPredictions = totalResult2Length}
+  
+          for (var i = 0; i < greatestTotalPredictions; i++ )
+          {
+              for (var j = 0; j < data.friends_list.length; j++)
+              {
+
+                const friendId = (data.friends_list[j]).replace(/[/\\*"]/g, "");
+                console.log(friendId)
+                try{
+                  const userVoted1 = data.total_result.total1[i]
+                  console.log(userVoted1)
+                  if(userVoted1 == friendId)
+                  {
+                      friendsResult1 += 1
+                  }
+                }catch{}
+
+                try{
+                  const userVoted2 = data.total_result.total2[i]
+                  if(userVoted2 == friendId)
+                  {
+                      friendsResult2 += 1
+                  }
+                }catch{}
+
+              }
+          }
+
+          const totalFriendsResult = friendsResult1 + friendsResult2
+          if(totalFriendsResult == 0)
+          {
+            setFriendsPredictions([])
+          }else{
+            setFriendsPredictions([{value: JSON.parse(((friendsResult1 / (totalFriendsResult))* 100).toFixed(0)), color: '#16B2CA', text: nameTeams[0]}, {value: JSON.parse(((friendsResult2 / (totalFriendsResult))* 100).toFixed(0)), color: '#235D92', text: nameTeams[1]}])
+          }
+
+
         }
 
-        // console.log(totalPredictionsCount)
-        // console.log(friendsPredictionsCount)
-        // console.log(friendsPredictionsInfo)
 
-        // console.log(matchId)
     }
 
     async function checkIfCanPredict(matchId)
@@ -282,58 +170,23 @@ export default function App({navigation}) {
       // two conditions, match must have not started, and prediction must nto already be placed
       // maybe included boolean diagram to show conditions
 
-      console.log('checking if can predict')
-
-      const activeMatchesData = await fetchData('activeMatches')
-
-      var matchStartTime = []
-
       var placedPrediction = false
-      for (var activeMatchIndex in activeMatchesData)
+      var futureStartTime = false
+
+      var {data} = await supabase.rpc("check_user_prediction", {match_id_input: matchId, user_id_input: myUserId })
+      placedPrediction = data // IF true, user has already placed prediction on the match
+      
+      if(placedPrediction == false) // Dont need to call second check if first is already an overriding factor (check Prediction Boolean Logic diagram)
       {
-          const activeMatch = activeMatchesData[activeMatchIndex]
-
-          if(activeMatch.matchID == matchId)
-          {
-              for (var predictionIndx in activeMatch.Predictions)
-              {
-                  var predictionItem = activeMatch.Predictions[predictionIndx]
-
-                  matchStartTime = activeMatch.StartTime
-
-                  console.log(predictionItem)
-
-                  var login = await getData('login')
-                  login = JSON.parse(login)
-
-                  if(predictionItem.username == login[2])
-                  {
-                      placedPrediction = true
-                      // console.log('prediction already placed')
-                      break
-                  }
-
-              }
-          }
+        var {data} = await supabase.rpc("check_match_start_time", {match_id_input: matchId })
+        futureStartTime = data // IF true, start time is in the future
       }
-
-      // check match start date
-
-      const targetDate = new Date(`${matchStartTime[0].split('/').reverse().join('-')}T${matchStartTime[1]}:00`);
-      const currentTime = new Date();
-      var timePassed = false
-
-      if (currentTime > targetDate) {
-        timePassed = true
-      }
-
-
-
-      if(placedPrediction == true || timePassed == true)
+      
+      if(!placedPrediction && futureStartTime) // AND LOGIC
       {
-          setCanPredict(false)
-      }else{
         setCanPredict(true)
+      }else{
+        setCanPredict(false)
       }
       
     }
@@ -347,80 +200,58 @@ export default function App({navigation}) {
       if(predictChoice == 1 || predictChoice == 0)
       {
           // one team is selected   
-          // console.log('placing prediction')
 
-          const activeMatchesData = await fetchData('activeMatches')
+          // RPC that appends to the table accountsMatches or updates an existing data inside of accountsMatches
 
-          var login = await getData('login')
-          login = JSON.parse(login)
-
-          // console.log('logine')
-          // console.log(login)
-
-
-          const nowTime = Date.now();
-          var predictionItem = {username: login[2], team: predictChoice + 1, time: nowTime, matchID: currentMatchID}
-
-          var predictionList = []
-
-          for (var matchIndx in activeMatchesData)
-          {
-              var matchItem = activeMatchesData[matchIndx]
-
-              if(matchItem.matchID == currentMatchID)
-              {
-                  // found correct match
-                  predictionList = matchItem.Predictions
-                  break
-              }
-          }
-
-          console.log(predictionList)
-
-          predictionList.push(predictionItem)
-
-          console.log(updatePredictionDB(predictionList))
-
-
-          // update account profile with prediction
-          
-          const userAccounts = await fetchData('accounts')
-          
-          var userPredictionsList = []
-
-          for (var accountIndx in userAccounts)
-          {
-              var userItem = userAccounts[accountIndx]
-
-              // console.log(userItem.username)
-              // console.log(login[2])
-              if(userItem.username == login[2])
-              {
-                // console.log('useritem')
-                // console.log(userItem)
-                  userPredictionsList = userItem.predictedMatches
-              }
-          }
-
-          userPredictionsList.push(predictionItem)
-
-          updatePredictionDBAccounts(userPredictionsList)
-
-
-          // console.log('prediction placed!')
           setCanPredict(false)
-          setSelectedIndex(0)
+          try{
+            setSelectedIndex(0)
+          }catch{
+            
+          }
 
+          (async() => { // modularization to avoid variable identifier issues
+            const {data} = await supabase.rpc("place_prediction", {match_id_input: currentMatchID, team_input: predictChoice + 1, user_id_input: myUserId })
+          })()
+
+          const { data: user, error: fetchError } = await supabase
+            .from('accounts')
+            .select('preferences')
+            .eq('id', myUserId)
+            .single();
+
+            if (fetchError) {
+                console.error('Error fetching user preferences:', fetchError);
+                return;
+            }
+
+            // Update the notifications field without overwriting other fields
+            const updatedPreferences = {
+                ...user.preferences, // Keep existing fields
+                profile: teamImage[predictChoice], // Update or add
+            };
+
+            // Write back the updated preferences to the database
+            const { data, error: updateError } = await supabase
+                .from('accounts')
+                .update({ preferences: updatedPreferences })
+                .eq('id', myUserId);
+
+            if (updateError) {
+                console.error('Error updating preferences:', updateError);
+                return;
+            }
+
+            console.log('Preferences updated successfully:', data);
       }
     }
 
+    const [totalPredictions, setTotalPredictions] = useState([{value: 90, color: '#16B2CA', text: 'Liverpool'}, {value: 10, color: '#235D92', text: 'Barcelona'}])
 
-
-
+    const [friendsPredictions, setFriendsPredictions] = useState([{value: 52, color: '#16B2CA', text: 'Liverpool'}, {value: 48, color: '#235D92', text: 'Barcelona'}])
 
     return (
         <View style={{display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-            {/* <Text style={{fontFamily: RighteousFont, color: 'white', fontSize: 25, position: 'absolute', top: 60, left: 30, width: 120}} >Account</Text> */}
             <View style={{width: vw(100), height: 180, backgroundColor: 'red'}}>
 
                 <View style={{width: vw(50), height: 180, backgroundColor: '#222232', position: 'absolute', left: 0, display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
@@ -464,11 +295,11 @@ export default function App({navigation}) {
             backgroundColor: '#171D27'
           }}
           textStyle={{
-            fontFamily: 'RighteousFont', // Replace with your font
+            fontFamily: 'RighteousFont',
             fontSize: 16,
           }}
           selectedTextStyle={{
-            fontFamily: 'RighteousFont', // Replace with your font
+            fontFamily: 'RighteousFont',
             fontSize: 16,
           }}
         />)
@@ -476,12 +307,43 @@ export default function App({navigation}) {
           
           }
             {selectedIndex === 0 ? (
-                <ScrollView style={{marginTop: 10, width: vw(90), height: vh(65)}}>
+                <ScrollView style={{marginTop: 10, width: vw(90), height: vh(65), position: 'relative'}}>
                     <Text style={{ color: 'white', fontSize: 17, fontFamily: RighteousFont, marginTop: 10 }}>Total predictions:</Text>
-                    <Text style={{ color: 'white', fontSize: 17, textAlign: 'center', fontFamily: RighteousFont, marginTop: 20, opacity: 0.7 }}>N/A</Text>
+
+                    {totalPredictions.length ? 
+                    
+                    (
+                      <View>
+                        <Text style={{ color: 'white', fontSize: 17, textAlign: 'center', fontFamily: RighteousFont, marginTop: 60, opacity: 1, position: 'absolute', color: '#16B2CA' }}>{totalPredictions[0].text} <Text style={{color: 'white'}}>{totalPredictions[0].value}%</Text> </Text>
+                        <Text style={{ color: 'white', fontSize: 17, textAlign: 'center', fontFamily: RighteousFont, marginTop: 100, opacity: 1, position: 'absolute', color: '#378BD8' }}>{totalPredictions[1].text} <Text style={{color: 'white'}}>{totalPredictions[1].value}%</Text></Text>
+                        
+                        <View style={{ left: 180}}>
+                          <PieChart  radius={80} data={totalPredictions} />
+                        </View>
+                      </View>
+
+                    ) : (
+
+                      <Text style={{ color: 'white', fontSize: 17, textAlign: 'center', fontFamily: RighteousFont, marginTop: 20, opacity: 0.7 }}>N/A</Text>
+                    )}
 
                     <Text style={{ color: 'white', fontSize: 17, fontFamily: RighteousFont, marginTop: 50 }}>Friends Predictions:</Text>
-                    <Text style={{ color: 'white', fontSize: 17, textAlign: 'center', fontFamily: RighteousFont, marginTop: 20, opacity: 0.7 }}>N/A</Text>
+                    {friendsPredictions.length ? 
+                    
+                    (
+                      <View>
+                        <Text style={{ color: 'white', fontSize: 17, textAlign: 'center', fontFamily: RighteousFont, marginTop: 60, opacity: 1, position: 'absolute', color: '#16B2CA' }}>{friendsPredictions[0].text} <Text style={{color: 'white'}}>{friendsPredictions[0].value}%</Text> </Text>
+                        <Text style={{ color: 'white', fontSize: 17, textAlign: 'center', fontFamily: RighteousFont, marginTop: 100, opacity: 1, position: 'absolute', color: '#378BD8' }}>{friendsPredictions[1].text} <Text style={{color: 'white'}}>{friendsPredictions[1].value}%</Text></Text>
+                        
+                        <View style={{ left: 180}}>
+                          <PieChart radius={80} data={friendsPredictions} />
+                        </View>
+                      </View>
+
+                    ) : (
+
+                      <Text style={{ color: 'white', fontSize: 17, textAlign: 'center', fontFamily: RighteousFont, marginTop: 20, opacity: 0.7 }}>N/A</Text>
+                    )}
                 </ScrollView>
             ) : (
                 <View style={{marginTop: 10, width: vw(90), height: vh(65)}}>

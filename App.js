@@ -18,11 +18,12 @@ import SignUp from './JS/Signup'
 
 import MatchInfo from './JS/MatchInfo'
 import LeagueInfo from './JS/LeagueInfo'
+import PlayerInfo from './JS/PlayerInfo'
 
 import { Provider as PaperProvider } from 'react-native-paper';
 
 
-import { load, save } from './JS/Functions';
+import { load, save, fetchData, sendData } from './JS/Functions';
 
 
 
@@ -55,7 +56,7 @@ export default function App() {
       notification: '#FFFFFF',
     },
   };
-
+  // Dedicated function required to pass in navigation prop
   function StartFunction({navigation})
   {
       return <StartPage navigation={navigation} />
@@ -89,6 +90,10 @@ export default function App() {
   {
     return <LeagueInfo navigation={navigation}/>
   }
+  function PlayerInfoFunction({navigation})
+  {
+    return <PlayerInfo navigation={navigation}/>
+  }
   
 
   return (
@@ -111,6 +116,7 @@ export default function App() {
         {/* Sub Pages */}
         <Tab.Screen name="MatchInfo" component={MatchInfoFunction} options={{ tabBarStyle: { display: 'none'}, tabBarButton: (props) => null, tabBarShowLabel: true, headerShown: false }}  />
         <Tab.Screen name="LeagueInfo" component={LeagueInfoFunction} options={{ tabBarStyle: { display: 'none'}, tabBarButton: (props) => null, tabBarShowLabel: true, headerShown: false }}  />
+        <Tab.Screen name="PlayerInfo" component={PlayerInfoFunction} options={{ tabBarStyle: { display: 'none'}, tabBarButton: (props) => null, tabBarShowLabel: true, headerShown: false }}  />
 
 
       </Tab.Navigator>
@@ -120,12 +126,3 @@ export default function App() {
     
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
